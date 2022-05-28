@@ -16,6 +16,7 @@ import {
   FieldControl,
   FieldGroup,
   FormBuilder,
+  FormGroup,
   Validators,
 } from "react-reactive-form";
 import Switch from "./components/Switch";
@@ -81,7 +82,7 @@ function App() {
       title: "Name",
       dataIndex: "name",
       key: "name",
-      render: (text: any) => <a>{text}</a>,
+      render: (text: any) => <span>{text}</span>,
     },
     {
       title: "Age",
@@ -118,8 +119,8 @@ function App() {
       key: "action",
       render: (_: any, record: any) => (
         <Space size="middle">
-          <a>Invite {record.name}</a>
-          <a>Delete</a>
+          <span>Invite {record.name}</span>
+          <span>Delete</span>
         </Space>
       ),
     },
@@ -317,10 +318,11 @@ function App() {
                       },
                     ]);
                     extraInfoForm.controls.extraInfoName.reset();
-                  }}
-                  onChange={() => {
                     dispatch({ type: "extraInfo", value: !invalid });
                   }}
+                  // onChange={() => {
+                  //   dispatch({ type: "extraInfo", value: !invalid });
+                  // }}
                 >
                   <Space size="middle">
                     <FieldControl
@@ -437,11 +439,12 @@ function App() {
                     );
                     console.log(basesInfoForm.controls.basesInfo.value);
                     basesInfoForm.controls.basesInfoName.reset();
-                    console.log(basesInfoForm.getRawValue());
-                  }}
-                  onChange={() => {
+                    // console.log(basesInfoForm.getRawValue());
                     dispatch({ type: "bases", value: !invalid });
                   }}
+                  // onChange={() => {
+                  //   dispatch({ type: "bases", value: !invalid });
+                  // }}
                 >
                   <Space size="middle">
                     <FieldControl
@@ -463,6 +466,28 @@ function App() {
                       Incluir
                     </Button>
                   </Space>
+
+                  {basesInfoForm.controls.basesInfo.value.controls.map(
+                    (bControl: FormGroup, index: number) => {
+                      return (
+                        <Collapse key={`${index + 1}`}>
+                          <Collapse.Panel
+                            header={`Base: ${bControl.controls.bName.value}`}
+                            key={`${index + 1}`}
+                            extra={
+                              state.basicInfo && (
+                                <CheckCircleOutlined
+                                  style={{ color: "green", fontSize: 24 }}
+                                />
+                              )
+                            }
+                          >
+                            {bControl.controls.bName.value}
+                          </Collapse.Panel>
+                        </Collapse>
+                      );
+                    }
+                  )}
                 </Form>
               );
             }}
