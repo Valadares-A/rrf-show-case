@@ -22,14 +22,115 @@ import {
 } from "react-reactive-form";
 import Switch from "./components/Switch";
 
+const editMode = true;
+const readMode = false;
+const createMode = !editMode && !readMode;
+
+const mockedData = {
+  id: "1",
+  loginForm: {
+    username: "123",
+    password: "123",
+    status: true,
+    rememberMe: false,
+  },
+  extraInfoForm: [
+    {
+      key: "0",
+      name: "1",
+      age: 32,
+      address: "New York No. 1 Lake Park",
+      tags: ["nice", "developer"],
+    },
+  ],
+  basesInfoForm: [
+    {
+      bName: "1",
+      bAddress: {
+        cep: "1",
+        street: "2",
+        number: "3",
+      },
+      bContact: [
+        {
+          email: "1",
+          id: 0,
+        },
+      ],
+      bRoutesAndValues: [
+        {
+          transport: "Yiminghe",
+          id: 0,
+        },
+      ],
+      bExtraInfo: [
+        {
+          info: "1",
+          id: 0,
+        },
+      ],
+    },
+    {
+      bName: "2",
+      bAddress: {
+        cep: "3",
+        street: "2",
+        number: "1",
+      },
+      bContact: [
+        {
+          email: "teste@teste.com",
+          id: 0,
+        },
+      ],
+      bRoutesAndValues: [
+        {
+          transport: "lucy",
+          id: 0,
+        },
+      ],
+      bExtraInfo: [
+        {
+          info: "1",
+          id: 0,
+        },
+      ],
+    },
+  ],
+};
+
 const accordionStatus = {
   basicInfo: false,
   extraInfo: false,
-  bases: false,
+  bases: [],
 };
 
 const reducer = (state: any, action: any) => {
-  state[action.type] = action.value;
+  if (action.type === "fill") {
+    state = {
+      basicInfo: true,
+      extraInfo: true,
+      bases: action.bases.map(() => {
+        return {
+          addressForm: true,
+          contactForm: true,
+          rav: true,
+          extraForm: true,
+        };
+      }),
+    };
+  } else if (action.type !== "bases") {
+    state[action.type] = action.value;
+  } else {
+    switch (action.subType) {
+      case "new":
+        state[action.type][action.index] = action.value;
+        break;
+      default:
+        state[action.type][action.index][action.subType] = action.value;
+        break;
+    }
+  }
   return { ...state };
 };
 
@@ -73,7 +174,7 @@ function App() {
           //   bName: ["", []],
           // })
         ]),
-        [testeValidator],
+        [],
       ],
     });
   }, []);
@@ -127,11 +228,87 @@ function App() {
     },
   ];
 
-  const [state, dispatch] = useReducer(reducer, accordionStatus);
+  const [accordionsState, accordionDispatch] = useReducer(
+    reducer,
+    accordionStatus
+  );
 
   useEffect(() => {
-    setAllValid(state.basicInfo && state.extraInfo && state.bases);
-  }, [state]);
+    setAllValid(
+      accordionsState.basicInfo &&
+        accordionsState.extraInfo &&
+        accordionsState.bases.length > 0 &&
+        accordionsState.bases.every((el: any) => {
+          return el.addressForm && el.contactForm && el.rav && el.extraForm;
+        })
+    );
+  }, [accordionsState]);
+
+  useEffect(() => {
+    if (editMode || readMode) {
+      if (readMode) {
+        loginForm.disable();
+        extraInfoForm.disable();
+        basesInfoForm.disable();
+      }
+      loginForm.patchValue(mockedData.loginForm);
+      extraInfoForm.patchValue({
+        table: mockedData.extraInfoForm,
+      });
+      basesInfoForm.patchValue({
+        basesInfo: FormBuilder.array(
+          mockedData.basesInfoForm.map((b) => {
+            const addressForm = FormBuilder.group({
+              cep: [null, [Validators.required]],
+              street: [null, [Validators.required]],
+              number: [null, [Validators.required]],
+            });
+            const contactForm = FormBuilder.group({
+              email: [null, []],
+              list: [[], [tableValidator]],
+            });
+            const rav = FormBuilder.group({
+              transport: [null, []],
+              list: [[], [tableValidator]],
+            });
+            const extraForm = FormBuilder.group({
+              info: [null, []],
+              list: [[], [tableValidator]],
+            });
+            addressForm.patchValue(b.bAddress);
+            contactForm.patchValue({
+              list: b.bContact,
+            });
+            rav.patchValue({
+              list: b.bRoutesAndValues,
+            });
+            extraForm.patchValue({
+              list: b.bExtraInfo,
+            });
+
+            if (readMode) {
+              addressForm.disable();
+              contactForm.disable();
+              rav.disable();
+              extraForm.disable();
+            }
+
+            return FormBuilder.group({
+              bName: [b.bName, []],
+              bAddress: [addressForm, []],
+              bContact: [contactForm, []],
+              bRoutesAndValues: [rav, []],
+              bExtraInfo: [extraForm, []],
+            });
+          })
+        ),
+      });
+      accordionDispatch({
+        type: "fill",
+        bases: mockedData.basesInfoForm,
+      });
+    }
+  }, []);
 
   return (
     <div>
@@ -147,7 +324,28 @@ function App() {
               Link
             </Button>,
             <Button key="2">Operation</Button>,
-            <Button key="1" type="primary" disabled={!allValid}>
+            <Button
+              key="1"
+              type="primary"
+              disabled={!allValid}
+              onClick={() => {
+                console.log("allValid", allValid);
+                console.log("loginForm", loginForm.value);
+                console.log("extraInfoForm", extraInfoForm.value);
+                console.log(
+                  "basesInfoForm",
+                  basesInfoForm.value.basesInfo.value.map((b: any) => {
+                    return {
+                      bName: b.bName,
+                      bAddress: b.bAddress.value,
+                      bContact: b.bContact.value,
+                      bRav: b.bRoutesAndValues.value,
+                      bExtra: b.bExtraInfo.value,
+                    };
+                  })
+                );
+              }}
+            >
               Finalizar
             </Button>,
           ]}
@@ -163,18 +361,19 @@ function App() {
         //   }
         // }}
       >
+        {/* Dados */}
         <Collapse.Panel
           header="Dados"
           key="1"
           extra={
-            state.basicInfo && (
+            accordionsState.basicInfo && (
               <CheckCircleOutlined style={{ color: "green", fontSize: 24 }} />
             )
           }
         >
           <FieldGroup
             control={loginForm}
-            render={({ get, invalid }) => {
+            render={({ get, invalid, disabled }) => {
               return (
                 <Form
                   onFinish={(e) => {
@@ -183,7 +382,10 @@ function App() {
                     console.log("Form values", loginForm.value);
                   }}
                   onChange={(e) => {
-                    dispatch({ type: "basicInfo", value: !invalid });
+                    accordionDispatch({
+                      type: "basicInfo",
+                      value: loginForm.valid,
+                    });
                     // console.log("Form values", loginForm.value);
                   }}
                   // onBlur={(e) => {
@@ -264,47 +466,64 @@ function App() {
                       );
                     }}
                   />
-                  <Button
-                    type="dashed"
-                    onClick={() => {
-                      loginForm.reset();
-                      dispatch({ type: "basicInfo", value: false });
-                    }}
-                  >
-                    Reset
-                  </Button>
-                  <Button htmlType="submit" type="primary" disabled={invalid}>
-                    Submit
-                  </Button>
+
+                  {!disabled && (
+                    <>
+                      <Button
+                        type="dashed"
+                        onClick={() => {
+                          loginForm.reset();
+                          accordionDispatch({
+                            type: "basicInfo",
+                            value: false,
+                          });
+                        }}
+                      >
+                        Reset
+                      </Button>
+                      <Button
+                        htmlType="submit"
+                        type="primary"
+                        disabled={invalid}
+                      >
+                        Submit
+                      </Button>
+                    </>
+                  )}
                 </Form>
               );
             }}
           />
-          <Button
-            onClick={() => {
-              if (loginForm.valid) {
-                console.log(loginForm.value);
-                dispatch({ type: "basicInfo", value: true });
-              } else {
-                dispatch({ type: "basicInfo", value: false });
-              }
-            }}
-          >
-            New submit
-          </Button>
+          {!readMode && (
+            <Button
+              onClick={() => {
+                if (loginForm.valid) {
+                  console.log(loginForm.value);
+                  accordionDispatch({ type: "basicInfo", value: true });
+                } else {
+                  accordionDispatch({ type: "basicInfo", value: false });
+                }
+              }}
+            >
+              New submit
+            </Button>
+          )}
         </Collapse.Panel>
+        {/* Informações Extras */}
         <Collapse.Panel
           header="Informações Extras"
           key="2"
           extra={
-            state.extraInfo && (
+            accordionsState.extraInfo && (
               <CheckCircleOutlined style={{ color: "green", fontSize: 24 }} />
             )
           }
         >
           <FieldGroup
             control={extraInfoForm}
-            render={({ get, invalid }) => {
+            render={({ get, invalid, disabled }) => {
+              console.log(disabled);
+
               return (
                 <Form
                   onFinish={(e) => {
@@ -319,33 +538,35 @@ function App() {
                       },
                     ]);
                     extraInfoForm.controls.extraInfoName.reset();
-                    dispatch({ type: "extraInfo", value: !invalid });
+                    accordionDispatch({
+                      type: "extraInfo",
+                      value: extraInfoForm.valid,
+                    });
                   }}
-                  // onChange={() => {
-                  //   dispatch({ type: "extraInfo", value: !invalid });
-                  // }}
                 >
-                  <Space size="middle">
-                    <FieldControl
-                      name="extraInfoName"
-                      meta={{ label: "Name", type: "text" }}
-                      render={(e) => {
-                        console.log(e);
-                        return (
-                          <div>
-                            <label htmlFor="extraInfoName">
-                              {e.meta.label}
-                            </label>
-                            <Input id="extraInfoName" {...e.handler()} />
-                          </div>
-                        );
-                      }}
-                    />
+                  {!disabled && (
+                    <Space size="middle">
+                      <FieldControl
+                        name="extraInfoName"
+                        meta={{ label: "Name", type: "text" }}
+                        render={(e) => {
+                          console.log(e);
+                          return (
+                            <div>
+                              <label htmlFor="extraInfoName">
+                                {e.meta.label}
+                              </label>
+                              <Input id="extraInfoName" {...e.handler()} />
+                            </div>
+                          );
+                        }}
+                      />
 
-                    <Button type="primary" htmlType="submit">
-                      Incluir
-                    </Button>
-                  </Space>
+                      <Button type="primary" htmlType="submit">
+                        Incluir
+                      </Button>
+                    </Space>
+                  )}
 
                   <FieldControl
                     name="table"
@@ -399,10 +620,22 @@ function App() {
             }}
           />
         </Collapse.Panel>
-        <Collapse.Panel header="Bases" key="3">
+        {/* Bases */}
+        <Collapse.Panel
+          header="Bases"
+          key="3"
+          extra={
+            accordionsState.bases.length > 0 &&
+            accordionsState.bases.every((el: any) => {
+              return el.addressForm && el.contactForm && el.rav && el.extraForm;
+            }) && (
+              <CheckCircleOutlined style={{ color: "green", fontSize: 24 }} />
+            )
+          }
+        >
           <FieldGroup
             control={basesInfoForm}
-            render={({ get, invalid }) => {
+            render={({ get, invalid, disabled }) => {
               return (
                 <Form
                   onFinish={() => {
@@ -423,6 +656,8 @@ function App() {
                       info: [null, []],
                       list: [[], [tableValidator]],
                     });
+                    const bIndex =
+                      basesInfoForm.controls.basesInfo.value.controls.length;
                     basesInfoForm.controls.basesInfo.setValue(
                       FormBuilder.array([
                         ...basesInfoForm.controls.basesInfo.value.controls,
@@ -431,41 +666,52 @@ function App() {
                             basesInfoForm.controls.basesInfoName.value,
                             [],
                           ],
-                          bAddress: [addressForm, []],
+                          bAddress: [addressForm, [testeValidator]],
                           bContact: [contactForm, []],
                           bRoutesAndValues: [rav, []],
                           bExtraInfo: [extraForm, []],
                         }),
                       ])
                     );
-                    console.log(basesInfoForm.controls.basesInfo.value);
+                    // console.log(basesInfoForm.controls.basesInfo.value);
                     basesInfoForm.controls.basesInfoName.reset();
-                    // console.log(basesInfoForm.getRawValue());
-                    dispatch({ type: "bases", value: !invalid });
+                    accordionDispatch({
+                      type: "bases",
+                      index: bIndex,
+                      subType: "new",
+                      value: {
+                        addressForm: false,
+                        contactForm: false,
+                        rav: false,
+                        extraForm: false,
+                      },
+                    });
                   }}
                   // onChange={() => {
                   //   dispatch({ type: "bases", value: !invalid });
                   // }}
                 >
-                  <Space size="middle">
-                    <FieldControl
-                      name="basesInfoName"
-                      meta={{ label: "Nome da base", type: "text" }}
-                      render={(e) => {
-                        return (
-                          <div>
-                            <label htmlFor="basesInfoName">
-                              {e.meta.label}
-                            </label>
-                            <Input id="basesInfoName" {...e.handler()} />
-                          </div>
-                        );
-                      }}
-                    />
-                    <Button type="primary" htmlType="submit">
-                      Incluir
-                    </Button>
-                  </Space>
+                  {!disabled && (
+                    <Space size="middle">
+                      <FieldControl
+                        name="basesInfoName"
+                        meta={{ label: "Nome da base", type: "text" }}
+                        render={(e) => {
+                          return (
+                            <div>
+                              <label htmlFor="basesInfoName">
+                                {e.meta.label}
+                              </label>
+                              <Input id="basesInfoName" {...e.handler()} />
+                            </div>
+                          );
+                        }}
+                      />
+                      <Button type="primary" htmlType="submit">
+                        Incluir
+                      </Button>
+                    </Space>
+                  )}
                 </Form>
               );
             }}
@@ -480,7 +726,10 @@ function App() {
                     header={`Base: ${bControl.controls.bName.value}`}
                     key={`${index + 1}`}
                     extra={
-                      false && (
+                      accordionsState.bases[index].addressForm &&
+                      accordionsState.bases[index].contactForm &&
+                      accordionsState.bases[index].rav &&
+                      accordionsState.bases[index].extraForm && (
                         <CheckCircleOutlined
                           style={{ color: "green", fontSize: 24 }}
                         />
@@ -494,7 +743,7 @@ function App() {
                         header="Endereço"
                         key="1"
                         extra={
-                          false && (
+                          accordionsState.bases[index].addressForm && (
                             <CheckCircleOutlined
                               style={{ color: "green", fontSize: 24 }}
                             />
@@ -505,7 +754,17 @@ function App() {
                           control={bControl.controls.bAddress.value}
                           render={({ get, invalid }) => {
                             return (
-                              <Form>
+                              <Form
+                                onChange={() => {
+                                  accordionDispatch({
+                                    type: "bases",
+                                    index: index,
+                                    subType: "addressForm",
+                                    value:
+                                      bControl.controls.bAddress.value.valid,
+                                  });
+                                }}
+                              >
                                 <Space size="middle">
                                   <FieldControl
                                     name="cep"
@@ -569,7 +828,7 @@ function App() {
                         header="Contato"
                         key="2"
                         extra={
-                          bControl.controls.bContact.value.valid && (
+                          accordionsState.bases[index].contactForm && (
                             <CheckCircleOutlined
                               style={{ color: "green", fontSize: 24 }}
                             />
@@ -578,7 +837,7 @@ function App() {
                       >
                         <FieldGroup
                           control={bControl.controls.bContact.value}
-                          render={({ get, invalid }) => {
+                          render={({ get, invalid, disabled }) => {
                             return (
                               <Form
                                 onFinish={() => {
@@ -600,27 +859,39 @@ function App() {
                                     ]
                                   );
                                   bControl.controls.bContact.value.controls.email.reset();
+                                  accordionDispatch({
+                                    type: "bases",
+                                    index: index,
+                                    subType: "contactForm",
+                                    value:
+                                      bControl.controls.bContact.value.valid,
+                                  });
                                 }}
                               >
-                                <Space size="middle">
-                                  <FieldControl
-                                    name="email"
-                                    meta={{ label: "E-mail", type: "email" }}
-                                    render={(e) => {
-                                      return (
-                                        <div>
-                                          <label htmlFor="email">
-                                            {e.meta.label}
-                                          </label>
-                                          <Input id="email" {...e.handler()} />
-                                        </div>
-                                      );
-                                    }}
-                                  />
-                                  <Button type="primary" htmlType="submit">
-                                    Incluir
-                                  </Button>
-                                </Space>
+                                {!disabled && (
+                                  <Space size="middle">
+                                    <FieldControl
+                                      name="email"
+                                      meta={{ label: "E-mail", type: "email" }}
+                                      render={(e) => {
+                                        return (
+                                          <div>
+                                            <label htmlFor="email">
+                                              {e.meta.label}
+                                            </label>
+                                            <Input
+                                              id="email"
+                                              {...e.handler()}
+                                            />
+                                          </div>
+                                        );
+                                      }}
+                                    />
+                                    <Button type="primary" htmlType="submit">
+                                      Incluir
+                                    </Button>
+                                  </Space>
+                                )}
                                 <FieldControl
                                   name="list"
                                   meta={{ label: "Lista de contatos" }}
@@ -667,7 +938,7 @@ function App() {
                         header="Percurso e valores"
                         key="3"
                         extra={
-                          false && (
+                          accordionsState.bases[index].rav && (
                             <CheckCircleOutlined
                               style={{ color: "green", fontSize: 24 }}
                             />
@@ -676,7 +947,7 @@ function App() {
                       >
                         <FieldGroup
                           control={bControl.controls.bRoutesAndValues.value}
-                          render={({ get, invalid }) => {
+                          render={({ get, invalid, disabled }) => {
                             return (
                               <Form
                                 onFinish={() => {
@@ -698,56 +969,66 @@ function App() {
                                     ]
                                   );
                                   bControl.controls.bRoutesAndValues.value.controls.transport.reset();
+                                  accordionDispatch({
+                                    type: "bases",
+                                    index: index,
+                                    subType: "rav",
+                                    value:
+                                      bControl.controls.bRoutesAndValues.value
+                                        .valid,
+                                  });
                                 }}
                               >
-                                <Space size="middle">
-                                  <FieldControl
-                                    name="transport"
-                                    meta={{ label: "Tipo de Transporte" }}
-                                    render={(e) => {
-                                      return (
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            flexDirection: "column",
-                                          }}
-                                        >
-                                          <label htmlFor="transport">
-                                            {e.meta.label}
-                                          </label>
-                                          <Select
-                                            id="transport"
-                                            defaultValue="lucy"
-                                            style={{ width: 120 }}
-                                            // onChange={(e) => {
-                                            //   console.log(e);
-                                            // }}
-                                            {...e.handler()}
+                                {!disabled && (
+                                  <Space size="middle">
+                                    <FieldControl
+                                      name="transport"
+                                      meta={{ label: "Tipo de Transporte" }}
+                                      render={(e) => {
+                                        return (
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              flexDirection: "column",
+                                            }}
                                           >
-                                            <Select.Option value="jack">
-                                              Jack
-                                            </Select.Option>
-                                            <Select.Option value="lucy">
-                                              Lucy
-                                            </Select.Option>
-                                            <Select.Option
-                                              value="disabled"
-                                              disabled
+                                            <label htmlFor="transport">
+                                              {e.meta.label}
+                                            </label>
+                                            <Select
+                                              id="transport"
+                                              defaultValue="lucy"
+                                              style={{ width: 120 }}
+                                              // onChange={(e) => {
+                                              //   console.log(e);
+                                              // }}
+                                              {...e.handler()}
                                             >
-                                              Disabled
-                                            </Select.Option>
-                                            <Select.Option value="Yiminghe">
-                                              yiminghe
-                                            </Select.Option>
-                                          </Select>
-                                        </div>
-                                      );
-                                    }}
-                                  />
-                                  <Button type="primary" htmlType="submit">
-                                    Incluir
-                                  </Button>
-                                </Space>
+                                              <Select.Option value="jack">
+                                                Jack
+                                              </Select.Option>
+                                              <Select.Option value="lucy">
+                                                Lucy
+                                              </Select.Option>
+                                              <Select.Option
+                                                value="disabled"
+                                                disabled
+                                              >
+                                                Disabled
+                                              </Select.Option>
+                                              <Select.Option value="Yiminghe">
+                                                yiminghe
+                                              </Select.Option>
+                                            </Select>
+                                          </div>
+                                        );
+                                      }}
+                                    />
+                                    <Button type="primary" htmlType="submit">
+                                      Incluir
+                                    </Button>
+                                  </Space>
+                                )}
                                 <FieldControl
                                   name="list"
                                   meta={{ label: "Lista de contatos" }}
@@ -794,7 +1075,7 @@ function App() {
                         header="Informações extras"
                         key="4"
                         extra={
-                          false && (
+                          accordionsState.bases[index].extraForm && (
                             <CheckCircleOutlined
                               style={{ color: "green", fontSize: 24 }}
                             />
@@ -803,7 +1084,7 @@ function App() {
                       >
                         <FieldGroup
                           control={bControl.controls.bExtraInfo.value}
-                          render={({ get, invalid }) => {
+                          render={({ get, invalid, disabled }) => {
                             return (
                               <Form
                                 onFinish={() => {
@@ -823,27 +1104,36 @@ function App() {
                                     ]
                                   );
                                   bControl.controls.bExtraInfo.value.controls.info.reset();
+                                  accordionDispatch({
+                                    type: "bases",
+                                    index: index,
+                                    subType: "extraForm",
+                                    value:
+                                      bControl.controls.bExtraInfo.value.valid,
+                                  });
                                 }}
                               >
-                                <Space size="middle">
-                                  <FieldControl
-                                    name="info"
-                                    meta={{ label: "Informações adicionais" }}
-                                    render={(e) => {
-                                      return (
-                                        <div>
-                                          <label htmlFor="transport">
-                                            {e.meta.label}
-                                          </label>
-                                          <Input.TextArea {...e.handler()} />
-                                        </div>
-                                      );
-                                    }}
-                                  />
-                                  <Button type="primary" htmlType="submit">
-                                    Incluir
-                                  </Button>
-                                </Space>
+                                {!disabled && (
+                                  <Space size="middle">
+                                    <FieldControl
+                                      name="info"
+                                      meta={{ label: "Informações adicionais" }}
+                                      render={(e) => {
+                                        return (
+                                          <div>
+                                            <label htmlFor="transport">
+                                              {e.meta.label}
+                                            </label>
+                                            <Input.TextArea {...e.handler()} />
+                                          </div>
+                                        );
+                                      }}
+                                    />
+                                    <Button type="primary" htmlType="submit">
+                                      Incluir
+                                    </Button>
+                                  </Space>
+                                )}
                                 <FieldControl
                                   name="list"
                                   meta={{ label: "Informações Adicionais" }}
