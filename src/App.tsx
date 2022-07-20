@@ -2,6 +2,7 @@ import {
   Button,
   Checkbox,
   Collapse,
+  DatePicker,
   Form,
   Input,
   PageHeader,
@@ -22,7 +23,7 @@ import {
 } from "react-reactive-form";
 import Switch from "./components/Switch";
 
-const editMode = true;
+const editMode = false;
 const readMode = false;
 const createMode = !editMode && !readMode;
 
@@ -155,6 +156,7 @@ function App() {
     return FormBuilder.group({
       username: ["", [Validators.required, Validators.minLength(3)]],
       password: ["", Validators.required],
+      formDate: [null, Validators.required],
       status: [true],
       rememberMe: false,
     });
@@ -375,18 +377,19 @@ function App() {
             control={loginForm}
             render={({ get, invalid, disabled }) => {
               return (
-                <Form
-                  onFinish={(e) => {
-                    // e.preventDefault();
-                    // console.log(e);
-                    console.log("Form values", loginForm.value);
-                  }}
+                <form
+                  // onSubmit={(e) => {
+                  //   // e.preventDefault();
+                  //   // console.log(e);
+                  //   // console.log("Form values", loginForm.value);
+                  // }}
                   onChange={(e) => {
+                    e.preventDefault();
                     accordionDispatch({
                       type: "basicInfo",
                       value: loginForm.valid,
                     });
-                    // console.log("Form values", loginForm.value);
+                    console.log("Form values", loginForm.value);
                   }}
                   // onBlur={(e) => {
                   //   console.log(e);
@@ -452,6 +455,34 @@ function App() {
                   />
 
                   <FieldControl
+                    name="formDate"
+                    meta={{ label: "Date", type: "date" }}
+                    render={(e) => {
+                      // console.log(e);
+
+                      const { value, onChange } = e.handler();
+                      return (
+                        <div>
+                          <label htmlFor="formDate">{`${e.meta.label}`}</label>
+                          <DatePicker
+                            value={value}
+                            onChange={(e) => {
+                              onChange(e);
+                              accordionDispatch({
+                                type: "basicInfo",
+                                value: loginForm.valid,
+                              });
+                            }}
+                            format="DD/MM/YYYY"
+                            allowClear
+                            id="formDate"
+                          />
+                        </div>
+                      );
+                    }}
+                  />
+
+                  <FieldControl
                     name="status"
                     render={(e) => {
                       const { value, onChange, disabled } = e.handler();
@@ -490,7 +521,7 @@ function App() {
                       </Button>
                     </>
                   )}
-                </Form>
+                </form>
               );
             }}
           />
